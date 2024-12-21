@@ -1,0 +1,1 @@
+./build.sh && ./build/PC98Emu /home/wearr/Games/Touhou/TH01/game/th01.hdi
