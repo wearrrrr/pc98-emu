@@ -16,9 +16,10 @@ void Mem::write(uint16_t address, uint16_t data)
 
 uint16_t Mem::read(uint32_t address)
 {
-    if (address >= 0xFFF00000) {
-        // printf("Warning: Attempted to read from 0x%08X, repeating memory from 0x%08X\n", address, address & 0x000FFFFF);
-        address &= 0x000FFFFF;
+    address &= 0xFFFFF; // Ensure 20-bit addressing
+
+    if (address >= 0x0E8000 && address < 0x100000) {
+        printf("Reading BIOS at 0x%08X\n", address);
     }
 
     return memory[address];

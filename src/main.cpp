@@ -13,18 +13,19 @@ int main(int argc, char* argv[]) {
         0xB8, 0x00, 0x01, // MOV AX, 0x0100
         0x50, // PUSH AX
         0x59, // POP CX
+        0x05, 0x00, 0x01, // ADD AX, 0x0100
+        0x08, 0xE7, // OR AL, BL
 
         0xF4, // HLT
-        0x50, // PUSH AX
-        0x60 // POP CX
     };
 
     cpu.load(program, sizeof(program));
-    for (int i = 0; i < sizeof(program); i++) {
+
+    while (!cpu.HLT) {
         cpu.clock();
     }
 
-    printf("Register state:\n%s", cpu.GetRegisterState().c_str());
+    printf("%s", cpu.GetRegisterState().c_str());
 
     // if (SDL_Init(SDL_INIT_VIDEO) < 0) {
     //     printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());

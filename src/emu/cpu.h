@@ -1,12 +1,14 @@
 #include <cstdint>
 #include <string>
 #include <iomanip>
+#include <vector>
 
 #include "bus.h"
 
 class CPU {
     public:
         CPU();
+        void loadBIOS(const std::vector<uint8_t>& biosData);
         void load(uint8_t program[], uint16_t size);
         void clock();
         void reset();
@@ -15,6 +17,7 @@ class CPU {
         uint16_t GetEffectiveAddress(uint8_t rm);
         std::string GetRegisterState();
 
+        bool HLT = false;
         Bus bus;
 
     private:
@@ -55,12 +58,10 @@ class CPU {
             };
         };
 
-        bool HLT = false;
-
         uint16_t SI, DI, BP, SP;
         uint16_t DS, ES, SS, CS;
         // Instruction Pointer (Program Counter)
-        uint16_t IP;
+        uint32_t IP;
 
         // Flags
         bool carry_flag, parity_flag, aux_carry_flag, zero_flag, sign_flag, trap_flag, interrupt_flag, direction_flag, overflow_flag;
