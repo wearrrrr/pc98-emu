@@ -1,6 +1,8 @@
 #include <cstdint>
+#include <string>
+#include <iomanip>
 
-#include "mem.h"
+#include "bus.h"
 
 class CPU {
     public:
@@ -8,11 +10,16 @@ class CPU {
         void load(uint8_t program[], uint16_t size);
         void clock();
         void reset();
-        uint16_t read(uint16_t address);
         uint8_t* GetRegisterPointer_8Bit(uint8_t reg);
         uint16_t* GetRegisterPointer(uint8_t reg);
+        uint16_t GetEffectiveAddress(uint8_t rm);
+        std::string GetRegisterState();
+
+        Bus bus;
 
     private:
+        void Push(uint16_t value);
+        uint16_t Pop();
         void UpdateFlags(uint32_t result, uint16_t finalValue);
         uint16_t* ResolveRM(uint8_t mod, uint8_t rm);
 
@@ -55,9 +62,6 @@ class CPU {
         // Instruction Pointer (Program Counter)
         uint16_t IP;
 
-
         // Flags
         bool carry_flag, parity_flag, aux_carry_flag, zero_flag, sign_flag, trap_flag, interrupt_flag, direction_flag, overflow_flag;
-
-        Mem memory;
 };

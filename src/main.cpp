@@ -10,17 +10,21 @@ int main(int argc, char* argv[]) {
     CPU cpu = CPU();
 
     uint8_t program[] = {
-        0xB0, 0x12,
-        0xB4, 0x34,
-        0xB3, 0x56,
-        0xB8, 0x9A, 0x78,
-        0xF4
+        0xB8, 0x00, 0x01, // MOV AX, 0x0100
+        0x50, // PUSH AX
+        0x59, // POP CX
+
+        0xF4, // HLT
+        0x50, // PUSH AX
+        0x60 // POP CX
     };
 
     cpu.load(program, sizeof(program));
     for (int i = 0; i < sizeof(program); i++) {
         cpu.clock();
     }
+
+    printf("Register state:\n%s", cpu.GetRegisterState().c_str());
 
     // if (SDL_Init(SDL_INIT_VIDEO) < 0) {
     //     printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
