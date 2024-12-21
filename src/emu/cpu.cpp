@@ -612,7 +612,7 @@ std::string CPU::GetRegisterState() {
         << "Interrupt flag: " << interrupt_flag << "\t"
         << "Direction flag: " << direction_flag << "\n"
         << "Overflow flag: " << overflow_flag << "\t"
-        << "[0m";
+        << "\033[0m\n";
 
     return oss.str();
 }
