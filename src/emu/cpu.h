@@ -5,6 +5,22 @@
 
 #include "bus.h"
 
+struct ModRM {
+    uint8_t mod;
+    uint8_t reg;
+    uint8_t rm;
+};
+
+struct RegisterPointers {
+    uint16_t* reg;
+    uint16_t* rm;
+};
+
+struct RegisterPointers_8Bit {
+    uint8_t* reg;
+    uint16_t* rm;
+};
+
 class CPU {
     public:
         CPU();
@@ -12,6 +28,8 @@ class CPU {
         void load(uint8_t program[], uint16_t size);
         void clock();
         void reset();
+        RegisterPointers_8Bit GetRegisterPointers_8Bit(ModRM modrm);
+        RegisterPointers GetRegisterPointers(ModRM modrm);
         uint8_t* GetRegisterPointer_8Bit(uint8_t reg);
         uint16_t* GetRegisterPointer(uint8_t reg);
         uint16_t GetEffectiveAddress(uint8_t rm);
@@ -23,7 +41,8 @@ class CPU {
     private:
         void Push(uint16_t value);
         uint16_t Pop();
-        void UpdateFlags(uint32_t result, uint16_t finalValue);
+        void UpdateFlags(uint32_t result, uint16_t finalValue, uint16_t prevValue, bool isAddition);
+        ModRM DecodeModRM(uint8_t byte);
         uint16_t* ResolveRM(uint8_t mod, uint8_t rm);
 
         union {
@@ -61,7 +80,7 @@ class CPU {
         uint16_t SI, DI, BP, SP;
         uint16_t DS, ES, SS, CS;
         // Instruction Pointer (Program Counter)
-        uint32_t IP;
+        uint16_t IP;
 
         // Flags
         bool carry_flag, parity_flag, aux_carry_flag, zero_flag, sign_flag, trap_flag, interrupt_flag, direction_flag, overflow_flag;

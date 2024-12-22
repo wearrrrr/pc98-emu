@@ -3,12 +3,51 @@
 
 #include "cpu.h"
 
-uint8_t ModRM(uint8_t byte) {
-    uint8_t mod = (byte & 0b11000000) >> 6;
-    uint8_t reg = (byte & 0b00111000) >> 3;
-    uint8_t rm = byte & 0b00000111;
+ModRM CPU::DecodeModRM(uint8_t byte) {
+    uint8_t modrm = bus.cpuRead(CS * 16 + IP);
 
-    return mod;
+    uint8_t mod = (modrm & 0b11000000) >> 6;
+    uint8_t reg = (modrm & 0b00111000) >> 3;
+    uint8_t rm = modrm & 0b00000111;
+
+    uint16_t *reg_ptr = GetRegisterPointer(reg);
+    uint16_t *rm_ptr = ResolveRM(mod, rm);
+
+    return {
+        .mod = mod,
+        .reg = reg,
+        .rm = rm
+    };
+}
+
+RegisterPointers CPU::GetRegisterPointers(ModRM modrm) {
+    uint16_t *reg_ptr = GetRegisterPointer(modrm.reg);
+    uint16_t *rm_ptr = ResolveRM(modrm.mod, modrm.rm);
+
+    if (reg_ptr == nullptr || rm_ptr == nullptr) {
+        printf("Invalid ModR/M encoding! Halting..\n");
+        HLT = true;
+    }
+
+    return {
+        .reg = reg_ptr,
+        .rm = rm_ptr
+    };
+}
+
+RegisterPointers_8Bit CPU::GetRegisterPointers_8Bit(ModRM modrm) {
+    uint8_t *reg_ptr = GetRegisterPointer_8Bit(modrm.reg);
+    uint16_t *rm_ptr = ResolveRM(modrm.mod, modrm.rm);
+
+    if (reg_ptr == nullptr || rm_ptr == nullptr) {
+        printf("Invalid ModR/M encoding! Halting..\n");
+        HLT = true;
+    }
+
+    return {
+        .reg = reg_ptr,
+        .rm = rm_ptr
+    };
 }
 
 CPU::CPU() {
@@ -61,25 +100,13 @@ void CPU::clock() {
         case 0x00: {
             IP++;
 
-            uint8_t modrm = bus.cpuRead(CS * 16 + IP);
+            ModRM modrm = DecodeModRM(opcode);
+            RegisterPointers_8Bit ptrs = GetRegisterPointers_8Bit(modrm);
 
-            uint8_t mod = (modrm & 0b11000000) >> 6;
-            uint8_t reg = (modrm & 0b00111000) >> 3;
-            uint8_t rm = modrm & 0b00000111;
+            uint16_t previousValue = *ptrs.rm;
+            uint8_t result = *ptrs.rm + *ptrs.reg;
 
-            uint8_t *reg_ptr = GetRegisterPointer_8Bit(reg);
-            uint8_t *rm_ptr = GetRegisterPointer_8Bit(rm);
-
-            if (reg_ptr == nullptr || rm_ptr == nullptr) {
-                printf("Invalid ModR/M encoding\n");
-                return;
-            }
-
-            uint16_t result = *rm_ptr + *reg_ptr;
-
-            *rm_ptr = (uint8_t)result;
-
-            UpdateFlags(result, *rm_ptr);
+            UpdateFlags(result, *ptrs.rm, previousValue, true);
 
             break;
         }
@@ -88,25 +115,15 @@ void CPU::clock() {
         case 0x01: {
             IP++;
 
-            uint8_t modrm = bus.cpuRead(CS * 16 + IP);
+            ModRM modrm = DecodeModRM(opcode);
+            RegisterPointers ptrs = GetRegisterPointers(modrm);
 
-            uint8_t mod = (modrm & 0b11000000) >> 6;
-            uint8_t reg = (modrm & 0b00111000) >> 3;
-            uint8_t rm = modrm & 0b00000111;
+            uint16_t previousValue = *ptrs.rm;
+            uint16_t result = *ptrs.rm + *ptrs.reg;
 
-            uint16_t *reg_ptr = GetRegisterPointer(reg);
-            uint16_t *rm_ptr = ResolveRM(mod, rm);
+            *ptrs.rm = result;
 
-            if (reg_ptr == nullptr || rm_ptr == nullptr) {
-                printf("Invalid ModR/M encoding\n");
-                return;
-            }
-
-            uint32_t result = *rm_ptr + *reg_ptr;
-
-            *rm_ptr = (uint16_t)result;
-
-            UpdateFlags(result, *rm_ptr);
+            UpdateFlags(result, *ptrs.rm, previousValue, true);
 
             break;
         }
@@ -114,25 +131,15 @@ void CPU::clock() {
         case 0x02: {
             IP++;
 
-            uint8_t modrm = bus.cpuRead(CS * 16 + IP);
+            ModRM modrm = DecodeModRM(opcode);
+            RegisterPointers ptrs = GetRegisterPointers(modrm);
 
-            uint8_t mod = (modrm & 0b11000000) >> 6;
-            uint8_t reg = (modrm & 0b00111000) >> 3;
-            uint8_t rm = modrm & 0b00000111;
+            uint16_t previousValue = *ptrs.reg;
+            uint16_t result = *ptrs.reg + *ptrs.rm;
 
-            uint8_t *reg_ptr = GetRegisterPointer_8Bit(reg);
-            uint8_t *rm_ptr = GetRegisterPointer_8Bit(rm);
+            *ptrs.rm = (uint8_t)result;
 
-            if (reg_ptr == nullptr || rm_ptr == nullptr) {
-                printf("Invalid ModR/M encoding\n");
-                return;
-            }
-
-            uint16_t result = *reg_ptr + *rm_ptr;
-
-            *reg_ptr = (uint8_t)result;
-
-            UpdateFlags(result, *reg_ptr);
+            UpdateFlags(result, *ptrs.rm, previousValue, true);
 
             break;
         }
@@ -140,25 +147,13 @@ void CPU::clock() {
         case 0x03: {
             IP++;
 
-            uint8_t modrm = bus.cpuRead(CS * 16 + IP);
+            ModRM modrm = DecodeModRM(opcode);
+            RegisterPointers ptrs = GetRegisterPointers(modrm);
 
-            uint8_t mod = (modrm & 0b11000000) >> 6;
-            uint8_t reg = (modrm & 0b00111000) >> 3;
-            uint8_t rm = modrm & 0b00000111;
+            uint16_t previousValue = *ptrs.reg;
+            uint16_t result = *ptrs.reg + *ptrs.rm;
 
-            uint16_t *reg_ptr = GetRegisterPointer(reg);
-            uint16_t *rm_ptr = ResolveRM(mod, rm);
-
-            if (reg_ptr == nullptr || rm_ptr == nullptr) {
-                printf("Invalid ModR/M encoding\n");
-                return;
-            }
-
-            uint32_t result = *reg_ptr + *rm_ptr;
-
-            *reg_ptr = (uint16_t)result;
-
-            UpdateFlags(result, *reg_ptr);
+            UpdateFlags(result, *ptrs.rm, previousValue, true);
 
             break;
         }
@@ -177,6 +172,7 @@ void CPU::clock() {
             IP++;
             break;
         }
+        // PUSH/POP ES
         case 0x06: {
             Push(ES);
             break;
@@ -189,30 +185,32 @@ void CPU::clock() {
         case 0x08: {
             IP++;
 
-            uint8_t modrm = bus.cpuRead(CS * 16 + IP);
+            // uint8_t modrm = bus.cpuRead(CS * 16 + IP);
 
-            uint8_t mod = (modrm & 0b11000000) >> 6;
-            uint8_t reg = (modrm & 0b00111000) >> 3;
-            uint8_t rm = modrm & 0b00000111;
+            // uint8_t mod = (modrm & 0b11000000) >> 6;
+            // uint8_t reg = (modrm & 0b00111000) >> 3;
+            // uint8_t rm = modrm & 0b00000111;
 
-            uint8_t *reg_ptr = GetRegisterPointer_8Bit(reg);
-            uint8_t *rm_ptr = GetRegisterPointer_8Bit(rm);
+            // uint8_t *reg_ptr = GetRegisterPointer_8Bit(reg);
+            // uint8_t *rm_ptr = GetRegisterPointer_8Bit(rm);
 
-            if (reg_ptr == nullptr || rm_ptr == nullptr) {
-                printf("Invalid ModR/M encoding\n");
-                return;
-            }
+            ModRM modrm = DecodeModRM(opcode);
+            RegisterPointers_8Bit ptrs = GetRegisterPointers_8Bit(modrm);
 
-            uint16_t result = *rm_ptr | *reg_ptr;
-            *rm_ptr = (uint8_t)result;
-            UpdateFlags(result, *rm_ptr);
+            uint16_t previousValue = *ptrs.rm;
+            uint8_t result = *ptrs.rm | *ptrs.reg;
+
+            UpdateFlags(result, *ptrs.rm, previousValue, false);
 
             break;
         }
 
         // INC, DEC, and PUSH/POP instructions.
         case 0x40: {
+            uint16_t prevValue = AX;
             AX++;
+
+            UpdateFlags(AX, AX, prevValue, true);
             break;
         }
         case 0x41: {
@@ -342,7 +340,7 @@ void CPU::clock() {
         // JNE disp
         case 0x75: {
             IP++;
-            int8_t disp = static_cast<int8_t>(bus.cpuRead(CS * 16 + IP));
+            int8_t disp = (int8_t)bus.cpuRead(CS * 16 + IP);
             if (!zero_flag) {
                 IP += disp;
             }
@@ -352,21 +350,10 @@ void CPU::clock() {
         case 0x89: {
             IP++;
 
-            uint8_t modrm = bus.cpuRead(CS * 16 + IP);
+            ModRM modrm = DecodeModRM(opcode);
+            RegisterPointers ptrs = GetRegisterPointers(modrm);
 
-            uint8_t mod = (modrm & 0b11000000) >> 6;
-            uint8_t reg = (modrm & 0b00111000) >> 3;
-            uint8_t rm = modrm & 0b00000111;
-
-            uint16_t *reg_ptr = GetRegisterPointer(reg);
-            uint16_t *rm_ptr = ResolveRM(mod, rm);
-
-            if (reg_ptr == nullptr || rm_ptr == nullptr) {
-                printf("Invalid ModR/M encoding\n");
-                return;
-            }
-
-            *rm_ptr = *reg_ptr;
+            *ptrs.rm = *ptrs.reg;
 
             break;
         }
@@ -375,22 +362,54 @@ void CPU::clock() {
         case 0x8B: {
             IP++;
 
-            uint8_t modrm = bus.cpuRead(CS * 16 + IP);
+            ModRM modrm = DecodeModRM(opcode);
+            RegisterPointers ptrs = GetRegisterPointers(modrm);
 
-            uint8_t mod = (modrm & 0b11000000) >> 6;
-            uint8_t reg = (modrm & 0b00111000) >> 3;
-            uint8_t rm = modrm & 0b00000111;
+            *ptrs.rm = *ptrs.reg;
 
-            uint16_t *reg_ptr = GetRegisterPointer(reg);
-            uint16_t *rm_ptr = ResolveRM(mod, rm);
+            break;
+        }
 
-            if (reg_ptr == nullptr || rm_ptr == nullptr) {
-                printf("Invalid ModR/M encoding\n");
-                return;
+        // ADD rm, imm8, ADC rm, imm8, SBB rm, imm8, SUB rm, imm8, or CMP rm, imm8 depends on the modrm byte
+        case 0x83: {
+            IP++;
+
+            ModRM modrm = DecodeModRM(opcode);
+            RegisterPointers ptrs = GetRegisterPointers(modrm);
+
+            int8_t imm8 = static_cast<int8_t>(bus.cpuRead(CS * 16 + IP + 1));
+
+            switch (modrm.reg) {
+                // ADD rm, imm8
+                case 0b000: {
+                    uint16_t prevValue = *ptrs.rm;
+                    uint16_t result = *ptrs.rm + imm8;
+                    *ptrs.rm = result;
+                    UpdateFlags(result, *ptrs.rm, prevValue, true);
+                    break;
+                }
+                // // ADC rm, imm8
+                // case 0b010: {
+                //     uint16_t prevValue = *rm_ptr;
+                //     uint16_t result = *rm_ptr - imm8;
+                //     *rm_ptr = result;
+                //     UpdateFlags(result, *rm_ptr, prevValue, false);
+                //     break;
+                // }
+                // SUB rm, imm8
+                case 0b101: {
+                    uint16_t prevValue = *ptrs.rm;
+                    uint16_t result = *ptrs.rm - imm8;
+                    *ptrs.rm = result;
+                    UpdateFlags(result, *ptrs.rm, prevValue, false);
+                    break;
+                }
+                default:
+                    printf("Invalid reg field in ModR/M byte\n");
+                    return;
             }
 
-            *reg_ptr = *rm_ptr;
-
+            IP++;
             break;
         }
         
@@ -511,7 +530,8 @@ void CPU::reset() {
     SS = 0;
     CS = 0xF000;
 
-    IP = 0x8000;
+    // TODO: This will be set to 0xFFF0 in the future
+    IP = 0xF000;
 
     carry_flag = false;
     parity_flag = false;
@@ -524,14 +544,18 @@ void CPU::reset() {
     overflow_flag = false;
 }
 
-void CPU::UpdateFlags(uint32_t result, uint16_t finalValue) {
+void CPU::UpdateFlags(uint32_t result, uint16_t finalValue, uint16_t prevValue, bool isAddition) {
     carry_flag = result > 0xFFFF;
     zero_flag = finalValue == 0;
     sign_flag = finalValue & 0x8000;
-    overflow_flag = ((result ^ finalValue) & 0x8000) != 0;
+
+    if (isAddition) {
+        overflow_flag = (prevValue == 0xFFFF);
+    } else {
+        overflow_flag = ((prevValue ^ finalValue) & 0x8000) && ((prevValue ^ result) & 0x8000);
+    }
 }
 
-// TODO: Test this function to make sure it works
 uint16_t* CPU::ResolveRM(uint8_t mod, uint8_t rm) {
     uint16_t effective_address = 0;
 
@@ -600,9 +624,9 @@ std::string CPU::GetRegisterState() {
         << "SS: " << std::setw(4) << std::setfill('0') << SS << "\t"
         << "CS: " << std::setw(4) << std::setfill('0') << CS << "\n"
         << "IP: " << std::setw(4) << std::setfill('0') << IP << "\n"
-
-        << "\033[1;33m"
+        
         // Flags
+        << "\033[1;33m"
         << "Carry flag: " << carry_flag << "\t\t"
         << "Parity flag: " << parity_flag << "\n"
         << "Aux Carry flag: " << aux_carry_flag << "\t"
