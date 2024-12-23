@@ -8,18 +8,26 @@ int main(int argc, char* argv[]) {
     SDL_Surface* screenSurface = NULL;
 
     // Read BIOS.ROM into memory
-    FILE* bios = fopen("BIOS.ROM", "rb");
-    if (bios == NULL) {
-        printf("Failed to open BIOS.ROM\n");
-        return 1;
-    }
+    // FILE* bios = fopen("BIOS.ROM", "rb");
+    // if (bios == NULL) {
+    //     printf("Failed to open BIOS.ROM\n");
+    //     return 1;
+    // }
 
-    fseek(bios, 0, SEEK_END);
-    size_t bios_size = ftell(bios);
-    fseek(bios, 0, SEEK_SET);
-    for (size_t i = 0; i < bios_size; i++) {
-        mem.write(i, fgetc(bios));
-    }
+    // fseek(bios, 0, SEEK_END);
+    // size_t bios_size = ftell(bios);
+    // fseek(bios, 0, SEEK_SET);
+
+    uint8_t program[] = {
+        0xEB, 0x00
+    };
+
+    mem.write(0, program);
+
+
+    // for (size_t i = 0; i < bios_size; i++) {
+    //     mem.write(i, fgetc(bios));
+    // }
 
     execute_z86();
 
