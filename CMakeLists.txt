@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 project(PC98Emu)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_COMPILER clang++)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fms-extensions -fms-compatibility-version=19")
+
+set(CMAKE_CXX_STANDARD 20)
 
 option(VENDORED_SDL2 "Use vendored SDL2" OFF)
 
