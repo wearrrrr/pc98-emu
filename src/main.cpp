@@ -22,16 +22,10 @@ int main(int argc, char* argv[]) {
     uint8_t* bios_data = (uint8_t*)malloc(bios_size);
     fread(bios_data, 1, bios_size, bios);
 
-    // Print the start of the bios data as hex
-    for (int i = 0; i < 32; i++) {
-        printf("%02X ", bios_data[i]);
-    }
-    printf("\n");
-
     fclose(bios);
 
     for (int i = 0; i < bios_size; i++) {
-        mem.write(0xF0000 + i, bios_data[i]);
+        mem.write(0xE8000 + i, bios_data[i]);
     }
 
 
@@ -41,7 +35,7 @@ int main(int argc, char* argv[]) {
 
     // mem.write(0xFFFF0, program);
 
-    execute_z86();
+    z86_execute();
 
     // printf("%s", cpu.GetRegisterState().c_str());
 
