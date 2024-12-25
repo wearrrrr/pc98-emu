@@ -2,6 +2,7 @@
 #include <SDL2/SDL.h>
 
 #include "emu/cpu/8086_cpu.h"
+#include "emu/hardware/8255.h"
 
 int main(int argc, char* argv[]) {
     SDL_Window* window = NULL;
@@ -34,6 +35,10 @@ int main(int argc, char* argv[]) {
     // };
 
     // mem.write(0xFFFF0, program);
+
+    PortDevice* device = new HW_8255();
+
+    z86_add_device(device);
 
     z86_execute();
 

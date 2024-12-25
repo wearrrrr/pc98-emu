@@ -185,7 +185,7 @@ static void port_out(uint16_t port, uint16_t value) {
 
 static void port_in(uint16_t& value, uint16_t port) {
     // TODO: Check default value
-    value = 0;
+    // value = 0;
 
     const std::vector<PortDevice*>& devices = io_devices;
     for (auto device : devices) {
@@ -193,7 +193,7 @@ static void port_in(uint16_t& value, uint16_t port) {
             return;
         }
     }
-    printf("Unhandled: IN %04X, 0x%02X\n", value, port);
+    printf("Unhandled: IN %04X, %04X\n", value, port);
 }
 
 dllexport void z86_add_device(PortDevice* device) {
@@ -823,9 +823,16 @@ struct x86Context {
     inline void lods_impl() {
         intptr_t offset = this->direction ? sizeof(T) : -sizeof(T);
         x86Addr src_addr = this->str_src();
-        do {
+        if (this->rep_type > NO_REP) {
+            if (this->cx) {
+                do {
+                    this->index_reg<T>(AX) = src_addr.read_advance<T>(offset);
+                } while (--this->cx);
+            }
+        }
+        else {
             this->index_reg<T>(AX) = src_addr.read_advance<T>(offset);
-        } while (this->rep_type > NO_REP && --this->cx);
+        }
         this->si = src_addr.offset;
     }
 
@@ -834,9 +841,16 @@ struct x86Context {
         intptr_t offset = this->direction ? sizeof(T) : -sizeof(T);
         x86Addr src_addr = this->str_src();
         x86Addr dst_addr = this->str_dst();
-        do {
+        if (this->rep_type > NO_REP) {
+            if (this->cx) {
+                do {
+                    dst_addr.write_advance<T>(src_addr.read_advance<T>(offset), offset);
+                } while (--this->cs);
+            }
+        }
+        else {
             dst_addr.write_advance<T>(src_addr.read_advance<T>(offset), offset);
-        } while (this->rep_type > NO_REP && --this->cx);
+        }
         this->si = src_addr.offset;
         this->di = dst_addr.offset;
     }
@@ -845,9 +859,16 @@ struct x86Context {
     inline void stos_impl() {
         intptr_t offset = this->direction ? sizeof(T) : -sizeof(T);
         x86Addr dst_addr = this->str_dst();
-        do {
+        if (this->rep_type > NO_REP) {
+            if (this->cx) {
+                do {
+                    dst_addr.write_advance<T>(this->index_reg<T>(AX), offset);
+                } while (--this->cx);
+            }
+        }
+        else {
             dst_addr.write_advance<T>(this->index_reg<T>(AX), offset);
-        } while (this->rep_type > NO_REP && --this->cx);
+        }
         this->di = dst_addr.offset;
     }
 
@@ -855,9 +876,16 @@ struct x86Context {
     inline void scas_impl() {
         intptr_t offset = this->direction ? sizeof(T) : -sizeof(T);
         x86Addr dst_addr = this->str_dst();
-        do {
+        if (this->rep_type > NO_REP) {
+            if (this->cx) {
+                do {
+                    this->cmp_impl<T>(this->index_reg<T>(AX), dst_addr.read_advance<T>(offset));
+                } while (--this->cx && this->rep_type == this->zero);
+            }
+        }
+        else {
             this->cmp_impl<T>(this->index_reg<T>(AX), dst_addr.read_advance<T>(offset));
-        } while (this->rep_type > NO_REP && --this->cx && this->rep_type == this->zero);
+        }
         this->di = dst_addr.offset;
     }
 
@@ -866,9 +894,16 @@ struct x86Context {
         intptr_t offset = this->direction ? sizeof(T) : -sizeof(T);
         x86Addr src_addr = this->str_src();
         x86Addr dst_addr = this->str_dst();
-        do {
+        if (this->rep_type > NO_REP) {
+            if (this->cx) {
+                do {
+                    this->cmp_impl<T>(src_addr.read_advance<T>(offset), dst_addr.read_advance<T>(offset));
+                } while (--this->cx && this->rep_type == this->zero);
+            }
+        }
+        else {
             this->cmp_impl<T>(src_addr.read_advance<T>(offset), dst_addr.read_advance<T>(offset));
-        } while (this->rep_type > NO_REP && --this->cx && this->rep_type == this->zero);
+        }
         this->si = src_addr.offset;
         this->di = src_addr.offset;
     }
@@ -1151,7 +1186,6 @@ static inline void binopMR(x86Addr& pc, const L& lambda) {
 template <typename T, typename L>
 static inline void binopRM(x86Addr& pc, const L& lambda) {
     ModRM modrm = pc.read_advance<ModRM>();
-    T& rval = ctx.index_reg<T>(modrm.R());
     T mval;
     if (modrm.is_mem()) {
         x86Addr data_addr = modrm.parse_memM(pc);
@@ -1160,7 +1194,7 @@ static inline void binopRM(x86Addr& pc, const L& lambda) {
     else {
         mval = ctx.index_reg<T>(modrm.M());
     }
-    lambda(rval, mval);
+    lambda(ctx.index_reg<T>(modrm.R()), mval);
 }
 
 // Double width memory operand, special for LDS/LES
@@ -1182,7 +1216,7 @@ static inline void binopRM2(x86Addr& pc, const L& lambda) {
 template <typename T, typename L>
 static inline void binopMS(x86Addr& pc, const L& lambda) {
     ModRM modrm = pc.read_advance<ModRM>();
-    T& rval = ctx.index_seg(modrm.R());
+    uint16_t& rval = ctx.index_seg(modrm.R());
     if (modrm.is_mem()) {
         x86Addr data_addr = modrm.parse_memM(pc);
         T mval = data_addr.read<T>();
@@ -1191,23 +1225,22 @@ static inline void binopMS(x86Addr& pc, const L& lambda) {
         }
     }
     else {
-        lambda(ctx.index_seg(modrm.M()), rval);
+        lambda(ctx.index_reg<T>(modrm.M()), rval);
     }
 }
 
 template <typename T, typename L>
 static inline void binopSM(x86Addr& pc, const L& lambda) {
     ModRM modrm = pc.read_advance<ModRM>();
-    T& rval = ctx.index_seg(modrm.R());
     T mval;
     if (modrm.is_mem()) {
         x86Addr data_addr = modrm.parse_memM(pc);
         mval = data_addr.read<T>();
     }
     else {
-        mval = ctx.index_seg(modrm.M());
+        mval = ctx.index_reg<T>(modrm.M());
     }
-    lambda(rval, mval);
+    lambda(ctx.index_seg(modrm.R()), mval);
 }
 
 template <typename T, typename L>
