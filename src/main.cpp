@@ -25,9 +25,7 @@ int main(int argc, char* argv[]) {
 
     fclose(bios);
 
-    for (int i = 0; i < bios_size; i++) {
-        mem.write(0xE8000 + i, bios_data[i]);
-    }
+    z86_mem_write(0xE8000, bios_data, bios_size);
 
 
     // uint8_t program[] = {
@@ -36,9 +34,9 @@ int main(int argc, char* argv[]) {
 
     // mem.write(0xFFFF0, program);
 
-    PortDevice* device = new HW_8255();
+    PortByteDevice* device = new HW_8255();
 
-    z86_add_device(device);
+    z86_add_byte_device(device);
 
     z86_execute();
 

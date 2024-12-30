@@ -8,59 +8,65 @@
 #include <string.h>
 #include <type_traits>
 
-struct PortDevice {
+struct PortByteDevice {
     // Receive data from CPU.
     // Returns true if this device handled the port
-    virtual bool out(uint16_t port, uint16_t value) = 0;
+    virtual bool out_byte(uint32_t port, uint8_t value) {
+        return false;
+    }
+
     // Send data to CPU
     // Returns true if this device handled the port
-    virtual bool in(uint16_t& value, uint16_t port) = 0;
-};
-
-struct RAM {
-    uint8_t raw[0x110000];
-
-    template <typename T = uint8_t>
-    inline T* ptr(size_t offset) {
-        return (T*)&this->raw[offset];
-    }
-
-    template <typename T = uint8_t>
-    inline const T* ptr(size_t offset) const {
-        return (const T*)&this->raw[offset];
-    }
-
-    template <typename T = uint8_t>
-    inline T& ref(size_t offset) {
-        return *this->ptr<T>(offset);
-    }
-
-    template <typename T = uint8_t>
-    inline const T& ref(size_t offset) const {
-        return *this->ptr<T>(offset);
-    }
-
-    template <typename T = uint8_t>
-    inline T read(size_t offset) const {
-        return this->ref<T>(offset);
-    }
-
-    template <typename T = uint8_t>
-    inline void write(size_t offset, const T& value) {
-        if constexpr (!std::is_array_v<std::remove_reference_t<T>>) {
-            this->ref<T>(offset) = value;
-        }
-        else {
-            memcpy(this->ptr(offset), &value, sizeof(T));
-        }
-    }
-
-    inline uint8_t operator[](size_t offset) const {
-        return this->read(offset);
+    virtual bool in_byte(uint8_t& value, uint32_t port) {
+        return false;
     }
 };
 
-extern RAM mem;
+struct PortWordDevice {
+    // Receive data from CPU.
+    // Returns true if this device handled the port
+    virtual bool out_word(uint32_t port, uint16_t value) {
+        return false;
+    }
+    virtual bool out_byte(uint32_t port, uint8_t value) {
+        return false;
+    }
+
+    // Send data to CPU
+    // Returns true if this device handled the port
+    virtual bool in_word(uint16_t& value, uint32_t port) {
+        return false;
+    }
+    virtual bool in_byte(uint8_t& value, uint32_t port) {
+        return false;
+    }
+};
+
+struct PortDwordDevice {
+    // Receive data from CPU.
+    // Returns true if this device handled the port
+    virtual bool out_dword(uint32_t port, uint32_t value) {
+        return false;
+    }
+    virtual bool out_word(uint32_t port, uint16_t value) {
+        return false;
+    }
+    virtual bool out_byte(uint32_t port, uint8_t value) {
+        return false;
+    }
+
+    // Send data to CPU
+    // Returns true if this device handled the port
+    virtual bool in_dword(uint32_t& value, uint32_t port) {
+        return false;
+    }
+    virtual bool in_word(uint16_t& value, uint32_t port) {
+        return false;
+    }
+    virtual bool in_byte(uint8_t& value, uint32_t port) {
+        return false;
+    }
+};
 
 enum Interrupt : uint8_t {
     IntDE = 0,
@@ -76,6 +82,22 @@ void z86_cancel_interrupt();
 void z86_nmi();
 void z86_reset();
 
-void z86_add_device(PortDevice* device);
+void z86_add_dword_device(PortDwordDevice* device);
+void z86_add_word_device(PortWordDevice* device);
+void z86_add_byte_device(PortByteDevice* device);
+
+size_t z86_mem_write(size_t dst, const void* src, size_t size);
+
+template <typename T>
+static inline size_t z86_mem_write(size_t dst, const T& src) {
+    return z86_mem_write(dst, &src, sizeof(T));
+}
+
+size_t z86_mem_read(void* dst, size_t src, size_t size);
+
+template <typename T>
+static inline size_t z86_mem_read(T& dst, size_t src) {
+    return z86_mem_read(&dst, src, sizeof(T));
+}
 
 #endif
