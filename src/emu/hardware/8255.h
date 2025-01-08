@@ -3,6 +3,12 @@
 class HW_8255 : public PortByteDevice {
     public:
         HW_8255();
-        bool in(uint16_t& value, uint16_t port);
-        bool out(uint16_t port, uint16_t value);
+        bool out_byte(uint32_t port, uint8_t value);
+        bool in_byte(uint8_t& value, uint32_t port);
+
+        enum {
+            port_a = 0x0,
+            port_b = 0x1,
+            port_c = 0x2 
+        };
 };
